@@ -23,6 +23,8 @@ func main() {
 		log.Fatal("Please specify a URL.")
 	}
 
+	// Write to use POST
+	// https://stackoverflow.com/questions/24455147/how-do-i-send-a-json-string-in-a-post-request-in-go
 	res, err := http.Get(url)
 	if err != nil {
 		log.Fatal(err)
@@ -42,6 +44,12 @@ func main() {
 	doc.Find("doc-content[type=lineNewsPC]").Each(func(i int, s *goquery.Selection) {
 		title := s.Find("h2").Text()
 		content, _ := s.Find("p").Html()
+		opt, _ := s.Find(".mdCMN03Share a").Attr("data-opt")
+
+		optArr := strings.SplitAfter(opt, "'")
+
+		spos := len(optArr[3]) - 1
+		share := optArr[3][:spos]
 
 		title, err = deepl.Translate(title, "ja", "en")
 		if err != nil {
@@ -54,7 +62,7 @@ func main() {
 
 		entry := feeds.Item{
 			Title:       properTitle(title),
-			Link:        &feeds.Link{Href: "https://example.com"},
+			Link:        &feeds.Link{Href: share},
 			Description: content,
 			Created:     time.Now(),
 		}
@@ -62,7 +70,8 @@ func main() {
 		f = append(f, &entry)
 	})
 
-	fmt.Println(feed.BuildFeed(f))
+	writeToFile(fmt.Sprintln(feed.BuildFeed(f)), "feed.rss")
+
 }
 
 func getURLFromArgs() (string, error) {
@@ -84,4 +93,21 @@ func properTitle(input string) string {
 		}
 	}
 	return strings.Join(words, " ")
+}
+
+func writeToFile(content string, filename string) {
+
+	f, err := os.Create(filename)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer f.Close()
+
+	_, err2 := f.WriteString(content)
+
+	if err2 != nil {
+		log.Fatal(err2)
+	}
 }
